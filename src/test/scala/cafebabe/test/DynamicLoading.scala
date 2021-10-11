@@ -4,8 +4,9 @@ import cafebabe._
 import cafebabe.ByteCodes._
 import cafebabe.AbstractByteCodes._
 
-import org.scalatest.FunSuite
-class DynamicLoading extends FunSuite {
+import org.scalatest.funsuite.AnyFunSuite
+
+class DynamicLoading extends AnyFunSuite {
   private def mkMinimalClassFile : ClassFile = {
     val cf = new ClassFile("MyTest", None)
     cf.addDefaultConstructor
