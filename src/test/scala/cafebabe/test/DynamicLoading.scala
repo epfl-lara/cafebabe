@@ -23,7 +23,7 @@ class DynamicLoading extends AnyFunSuite {
     cl.register(cf)
     
     val c = cl.loadClass("MyTest")
-    val o = c.newInstance().asInstanceOf[AnyRef]
+    val o = c.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef]
     val m = c.getMethod("plusOne", Integer.TYPE)
 
     (m.invoke(o, 41 : java.lang.Integer) === 42)
