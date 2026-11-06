@@ -8,7 +8,8 @@ crossScalaVersions := Seq("2.11.12", "2.12.10", "3.5.2")
 
 scalacOptions ++= Seq(
     "-deprecation",
-    "-unchecked"
+    "-unchecked",
+    "-feature"
 )
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % "test"
