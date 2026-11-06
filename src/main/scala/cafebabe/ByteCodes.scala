@@ -1,5 +1,7 @@
 package cafebabe
 
+import scala.language.implicitConversions
+
 object ByteCodes {
   import ClassFileTypes._
   import AbstractByteCodes._
