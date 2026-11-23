@@ -18,6 +18,11 @@ scalacOptions ++= Seq(
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
 
+// Always run all the tests, instead of reusing the results of those whose inputs didn't change
+// since they last passed. Results cached before this setting are still reused, until the inputs
+// change: https://github.com/sbt/sbt/issues/10105
+Test / test / cacheStores := Nil
+
 // Publishing to Maven Central (see .github/workflows/release.yml): `sbt publishSigned` signs the
 // artifacts and stages them locally, `sbt sonaRelease` uploads them to the Central Portal and
 // releases them (`sbt sonaUpload` only uploads them, to inspect them in the Portal first). Both
