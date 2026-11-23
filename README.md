@@ -17,5 +17,3 @@ with Scala 3.9, and work with Scala 3.9 and later. Add the following to your pro
 ```scala
 libraryDependencies += "ch.epfl.lara" %% "cafebabe" % "<version>"
 ```
-
-The last release for Scala 2.10, 2.11 and 2.12 is `1.2`, under the same coordinates.
