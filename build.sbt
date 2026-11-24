@@ -1,11 +1,10 @@
-enablePlugins(GitVersioning)
-
-git.useGitDescribe := true
-
 // Published to Maven Central under the namespace of the lab, as ch.epfl.lara:cafebabe_3
 organization := "ch.epfl.lara"
 
 name := "cafebabe"
+
+// The version that the Release workflow publishes (see CONTRIBUTING.md)
+version := "1.3.0"
 
 // The standard Scala 3.9 (LTS), so that the published library works with Scala 3.9 and later,
 // including the Scala 3 compiler of the lab that Inox and Stainless use
@@ -19,12 +18,15 @@ scalacOptions ++= Seq(
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
 
-// Publishing to Maven Central (see .github/workflows/release.yml). The version comes from the
-// latest tag, through `git describe` (sbt-git): v1.3.0 gives 1.3.0, and -SNAPSHOT is appended when
-// the working tree has uncommitted changes. `sbt publishSigned` signs the artifacts and stages
-// them locally, `sbt sonaRelease` uploads them to the Central Portal and releases them (`sbt
-// sonaUpload` only uploads them, to inspect them in the Portal first). Both read the Portal token
-// from SONATYPE_USERNAME and SONATYPE_PASSWORD.
+// Always run all the tests, instead of reusing the results of those whose inputs didn't change
+// since they last passed. Results cached before this setting are still reused, until the inputs
+// change: https://github.com/sbt/sbt/issues/10105
+Test / test / cacheStores := Nil
+
+// Publishing to Maven Central (see .github/workflows/release.yml): `sbt publishSigned` signs the
+// artifacts and stages them locally, `sbt sonaRelease` uploads them to the Central Portal and
+// releases them (`sbt sonaUpload` only uploads them, to inspect them in the Portal first). Both
+// read the Portal token from SONATYPE_USERNAME and SONATYPE_PASSWORD.
 description := "A Scala library to generate JVM class files"
 
 homepage := Some(uri("https://github.com/epfl-lara/cafebabe"))

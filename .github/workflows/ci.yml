@@ -1,0 +1,36 @@
+# Compiles Cafebabe and runs its tests, on pushes to `main` and on pull
+# requests.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Only the latest run of a branch or pull request is useful
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+    - name: Setup JDK
+      uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: 21
+        cache: sbt
+    - name: Setup sbt
+      uses: sbt/setup-sbt@v1
+    - name: Test
+      run: sbt --server -batch test

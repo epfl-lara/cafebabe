@@ -1,26 +1,23 @@
-# Publishes Cafebabe to Maven Central (ch.epfl.lara:cafebabe_3),
-# through the Central Portal, then pushes the tag and creates the release on
-# GitHub.
+# Publishes Cafebabe to Maven Central (ch.epfl.lara:cafebabe_3), through the
+# Central Portal, then tags the release and creates it on GitHub.
 #
 # Triggered manually from the Actions UI (or `gh workflow run release.yml -f
 # version=v1.3.0`), on the branch or commit to release (usually `main`).
-# Given a version vX.Y.Z, it:
-#   1. Creates an annotated tag vX.Y.Z on the current commit, locally: the tag
-#      is what `sbt-git`/`git describe` use as the version for the build (the
-#      build uses `git.useGitDescribe`).
-#   2. Tests, signs and publishes that version to Maven Central.
-#   3. Pushes the tag.
-#   4. Creates a GitHub release for that tag, with auto-generated notes and
+# Given a version vX.Y.Z, which must be `version` in build.sbt with a leading
+# v, it:
+#   1. Tests, signs and publishes that version to Maven Central.
+#   2. Creates an annotated tag vX.Y.Z on the current commit and pushes it.
+#   3. Creates a GitHub release for that tag, with auto-generated notes and
 #      the JAR attached.
 #
 # With mode `upload`, it only uploads the artifacts to the Central Portal
 # (https://central.sonatype.com/publishing/deployments), to inspect them and
-# publish or drop them there; it then pushes no tag and creates no release.
+# publish or drop them there; it then creates neither the tag nor the release.
 #
 # A version can't be published twice: when it is already on Maven Central,
-# the workflow skips publishing, and only pushes the tag and creates the
-# release if they are missing (e.g. when a previous run failed after
-# publishing). The tag is annotated, but not signed.
+# the workflow skips publishing, and only creates the tag and the release if
+# they are missing (e.g. when a previous run failed after publishing). The
+# tag is annotated, but not signed.
 #
 # Needs, in the `release` environment of the repository:
 # - secrets PGP_SECRET (the ASCII-armored secret key that signs the artifacts,
@@ -33,10 +30,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Three-component version to release, with leading v (e.g. v1.3.0)'
+        description: 'Version to release, with leading v, as in build.sbt (e.g. v1.3.0)'
         required: true
       mode:
-        description: 'release: publish, push the tag and create the GitHub release; upload: only upload to the Central Portal, to inspect it there'
+        description: 'release: publish, tag and create the GitHub release; upload: only upload to the Central Portal, to inspect it there'
         type: choice
         options: [release, upload]
         default: release
@@ -59,35 +56,13 @@ jobs:
       TAG: ${{ inputs.version }}
       MODE: ${{ inputs.mode }}
       GH_TOKEN: ${{ github.token }}
-      JAVA_OPTS: -Xss64M -Xms1024M -Xmx4G
     steps:
     - name: Checkout
       uses: actions/checkout@v7
       with:
-        # Full history and tags are required for `git describe` to compute the version
+        # The tags, to check whether this one already exists
         fetch-depth: 0
         fetch-tags: true
-    - name: Validate the version and tag the current commit
-      run: |
-        if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "::error::The version must look like vX.Y.Z (got '$TAG')"
-          exit 1
-        fi
-        if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
-          # The tag of a previous run must be on this commit
-          tagged=$(git rev-list -n 1 "$TAG")
-          if [ "$tagged" != "$(git rev-parse HEAD)" ]; then
-            echo "::error::Tag $TAG already exists, on another commit ($tagged)"
-            exit 1
-          fi
-          echo "Tag $TAG already exists on this commit"
-        else
-          # Pushed only once the version is published
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "Cafebabe ${TAG#v}"
-        fi
-        echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
     - name: Setup JDK
       uses: actions/setup-java@v6
       with:
@@ -106,12 +81,25 @@ jobs:
           sleep 30
         done
         exit 1
-    - name: Check the version of the build
+    - name: Validate the version
       run: |
-        version=$(sbt --server -batch -no-colors "print version" | tail -n 1 | tr -d '[:space:]')
-        if [ "$version" != "$VERSION" ]; then
-          echo "::error::The build's version is $version instead of $VERSION (e.g. -SNAPSHOT when the working tree has changes)"
+        if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::The version must look like vX.Y.Z (got '$TAG')"
           exit 1
+        fi
+        version=$(sbt --server -batch -no-colors "print version" | tail -n 1 | tr -d '[:space:]')
+        if [ "$TAG" != "v$version" ]; then
+          echo "::error::The version in build.sbt is $version: set it to ${TAG#v} first, or release v$version"
+          exit 1
+        fi
+        echo "VERSION=$version" >> "$GITHUB_ENV"
+        # A tag of a previous run must be on this commit
+        if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+          tagged=$(git rev-list -n 1 "$TAG")
+          if [ "$tagged" != "$(git rev-parse HEAD)" ]; then
+            echo "::error::Tag $TAG already exists, on another commit ($tagged)"
+            exit 1
+          fi
         fi
     - name: Check whether the version is already published
       id: published
@@ -138,7 +126,7 @@ jobs:
       run: |
         if [ "$MODE" = "upload" ]; then
           sbt --server -batch publishSigned sonaUpload
-          echo "::notice::Cafebabe $VERSION uploaded: publish or drop it in the Central Portal. No tag was pushed and no release created."
+          echo "::notice::Cafebabe $VERSION uploaded: publish or drop it in the Central Portal. No tag or release was created."
         else
           sbt --server -batch publishSigned sonaRelease
           echo "::notice::Cafebabe $VERSION released; it shows up on Maven Central within about 30 minutes"
@@ -148,12 +136,15 @@ jobs:
         PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-    - name: Push the tag
+    - name: Tag the current commit and push the tag
       if: inputs.mode == 'release'
       run: |
-        if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
-          echo "Tag $TAG is already pushed"
+        if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+          echo "Tag $TAG already exists"
         else
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Cafebabe $VERSION"
           git push origin "refs/tags/$TAG"
         fi
     - name: Create the GitHub release
