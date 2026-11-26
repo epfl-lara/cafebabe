@@ -5,6 +5,9 @@ Cafebabe is a tiny Scala library to generate JVM class files. It was originally
 developed for the Compiler Construction course taught at EPFL. See
 http://lara.epfl.ch/w/Teaching for more info.
 
+The name Cafebabe comes from `0xCAFEBABE`, the
+[magic number at the start of every JVM class file](https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.1).
+
 The wiki contains some documentation.
 
 Setup
